@@ -1,55 +1,231 @@
-# whitePNG
-🖼️ Correttore Pixel Bianchi (PNG White Pixel Fixer)
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Correttore Pixel Bianchi — PNG</title>
+<style>
+  :root{
+    --bg1:#0ea5ea; --bg2:#7c3aed; --panel:#0b1020; --muted:#9aa4b2; --text:#f1f5f9; --accent:#22d3ee; --ok:#34d399;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial;
+    color:var(--text);
+    background: radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,.06), transparent 60%),
+                radial-gradient(800px 400px at 80% 20%, rgba(255,255,255,.05), transparent 60%),
+                linear-gradient(120deg, #0a0f1f 0%, #0d1126 50%, #0a0f1f 100%);
+    display:grid; place-items:center; padding:24px;
+  }
+  .card{
+    width:min(860px,100%);
+    background:rgba(14,18,35,.85);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:24px; padding:24px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    backdrop-filter: blur(6px);
+  }
+  header{display:flex; align-items:center; gap:14px; margin-bottom:10px}
+  .logo{
+    width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:22px;
+    background: conic-gradient(from 230deg, var(--bg1), var(--bg2));
+    box-shadow: 0 6px 18px rgba(124,58,237,.35);
+  }
+  h1{margin:0; font-size:clamp(22px,2.6vw,34px); letter-spacing:.3px}
+  .sub{margin:6px 0 18px; color:var(--muted)}
 
-Questa piccola web app corregge automaticamente i pixel bianchi puri (255,255,255) presenti in un’immagine PNG, sostituendoli con (254,255,255).
-La differenza è invisibile a occhio nudo, ma può risolvere diversi problemi nei flussi di stampa, taglio o DTF in cui il bianco viene interpretato come trasparente.
+  .grid{display:grid; grid-template-columns:1fr; gap:16px}
+  @media(min-width:900px){ .grid{ grid-template-columns: 1.1fr .9fr; } }
 
-✨ Caratteristiche
+  .panel{background:#0b1224; border:1px dashed rgba(255,255,255,.12); border-radius:18px; padding:18px}
 
-Funziona direttamente nel browser, anche offline
+  .drop{
+    border:2px dashed rgba(255,255,255,.18); border-radius:18px; padding:28px; text-align:center; cursor:pointer;
+    transition:.2s border-color,.2s background,.2s transform; position:relative; overflow:hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+  }
+  .drop:hover{ border-color: var(--accent); box-shadow: 0 10px 30px rgba(34,211,238,.15) inset; }
+  .drop.drag{ border-color: var(--accent); background: rgba(34,211,238,.06); transform: translateY(-1px); }
+  .drop .big{ font-size:46px; line-height:1 }
+  .drop h3{ margin:10px 0 6px; font-size:18px }
+  .help{ font-size:13px; color:var(--muted) }
 
-Mantiene intatta la trasparenza
+  .status{ margin-top:14px; display:flex; align-items:center; gap:10px; color:var(--muted) }
+  .spinner{ width:16px; height:16px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color: var(--accent); animation:spin .9s linear infinite; display:none }
+  @keyframes spin{ to{ transform: rotate(360deg) } }
+  .check{ width:22px; height:22px; border-radius:50%; background:var(--ok); display:grid; place-items:center; color:#062312; font-weight:900; box-shadow:0 0 0 6px rgba(52,211,153,.15) }
 
-Nessun upload: l’immagine non lascia mai il tuo dispositivo
+  .previewWrap{ display:grid; grid-template-columns:1fr; gap:12px }
+  @media(min-width:600px){ .previewWrap{ grid-template-columns:1fr 1fr } }
+  .preview h4{ margin:6px 0; color:var(--muted) }
+  canvas{ width:100%; height:auto; background:#050a18; border-radius:14px; border:1px solid rgba(255,255,255,.06) }
 
-Elaborazione automatica → il file corretto viene scaricato con _vw_optimized.png
+  .footer{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:10px; color:var(--muted) }
+  .tiny{ font-size:12px }
 
-Interfaccia divertente e colorata, con anteprima e confetti 🎉
+  .done{ display:none; align-items:center; gap:10px; margin-top:12px; font-weight:600 }
+  .confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden }
+  .confetti i{ position:absolute; width:10px; height:16px; opacity:.85; transform:translate3d(0,-100%,0) rotate(0deg); animation:fall linear forwards; }
+  @keyframes fall{ to{ transform: translate3d(var(--x,0), 110vh, 0) rotate(var(--r,0deg)); opacity: 1; } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <div class="logo">✨</div>
+      <div>
+        <h1>Correttore Pixel Bianchi</h1>
+        <div class="sub">Trascina un file <strong>PNG</strong> e il tool sostituirà automaticamente i pixel bianchi puri <span style="font-family:ui-monospace">(255,255,255)</span> con <span style="font-family:ui-monospace">(254,255,255)</span>, mantenendo la trasparenza e scaricando il risultato per te.</div>
+      </div>
+    </header>
 
-💡 Come usarla
+    <div class="grid">
+      <section class="panel">
+        <div id="drop" class="drop" tabindex="0" role="button" aria-label="Carica PNG">
+          <div class="big">🖼️</div>
+          <h3>Trascina qui il tuo PNG</h3>
+          <div class="help">…oppure clicca per selezionare un file • funziona offline • privacy garantita</div>
+          <input id="file" type="file" accept="image/png" hidden />
+        </div>
+        <div class="status"><div class="spinner" id="spin"></div><span id="status">In attesa di un PNG…</span></div>
+        <div class="done" id="done"><div class="check">✓</div>Fatto! Il file ottimizzato è stato scaricato.</div>
+      </section>
 
-Apri https://giovannire65.github.io/WhitePNG/
+      <section class="panel">
+        <div class="previewWrap">
+          <div class="preview">
+            <h4>Originale</h4>
+            <canvas id="canvasIn" aria-label="Anteprima originale"></canvas>
+          </div>
+          <div class="preview">
+            <h4>Ottimizzato</h4>
+            <canvas id="canvasOut" aria-label="Anteprima ottimizzata"></canvas>
+          </div>
+        </div>
+        <div class="footer tiny">
+          <span id="meta">Nessuna immagine caricata.</span>
+          <span>Suggerimento: incolla dagli appunti con <kbd>Ctrl/Cmd+V</kbd>.</span>
+        </div>
+      </section>
+    </div>
+  </div>
 
-Trascina un file .png o clicca per selezionarlo
+  <div class="confetti" id="confetti"></div>
 
-Attendi pochi secondi: il file corretto verrà scaricato automaticamente
+<script>
+const fileInput = document.getElementById('file');
+const drop = document.getElementById('drop');
+const statusEl = document.getElementById('status');
+const spin = document.getElementById('spin');
+const doneEl = document.getElementById('done');
+const canvasIn = document.getElementById('canvasIn');
+const canvasOut = document.getElementById('canvasOut');
+const meta = document.getElementById('meta');
+const ctxIn = canvasIn.getContext('2d');
+const ctxOut = canvasOut.getContext('2d');
 
-Fatto! ✅
+let originalImage = null;
+let originalName = '';
 
-🇬🇧 English version
-🖼️ PNG White Pixel Fixer
+function setStatus(t){ statusEl.textContent = t; }
+function setBusy(b){ spin.style.display = b ? 'inline-block' : 'none'; }
+function showDone(){ doneEl.style.display = 'flex'; fireConfetti(); }
+function hideDone(){ doneEl.style.display = 'none'; }
 
-This simple web app automatically replaces pure white pixels (255,255,255) in a PNG image with (254,255,255).
-The change is visually identical but helps fix issues in printing or DTF workflows where white is treated as transparent.
+drop.addEventListener('click', ()=>fileInput.click());
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => {
+  const f = [...(e.dataTransfer?.files||[])].find(x=>x.type==='image/png');
+  if (f) loadFile(f);
+});
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) loadFile(f);
+});
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items || [];
+  for (const it of items){
+    if (it.type === 'image/png'){
+      const f = it.getAsFile();
+      const reader = new FileReader();
+      reader.onload = () => loadImageSrc(reader.result, 'incolla.png');
+      reader.readAsDataURL(f);
+      break;
+    }
+  }
+});
 
-✨ Features
+function loadFile(file){
+  hideDone(); setBusy(true); setStatus('Caricamento…');
+  if (file.type !== 'image/png'){ setBusy(false); setStatus('Seleziona un file PNG.'); return; }
+  originalName = file.name.replace(/\\.[^.]+$/, '');
+  const reader = new FileReader();
+  reader.onload = () => loadImageSrc(reader.result, file.name);
+  reader.readAsDataURL(file);
+}
 
-Works offline, directly in your browser
+function loadImageSrc(src, name){
+  const img = new Image();
+  img.onload = () => {
+    originalImage = img;
+    canvasIn.width = canvasOut.width = img.width;
+    canvasIn.height = canvasOut.height = img.height;
+    ctxIn.clearRect(0,0,canvasIn.width, canvasIn.height);
+    ctxIn.drawImage(img,0,0);
+    meta.textContent = `${name} • ${img.width}×${img.height}px`;
+    setStatus('Elaborazione…');
+    process();
+  };
+  img.onerror = () => { setBusy(false); setStatus('Impossibile caricare l’immagine.'); };
+  img.src = src;
+}
 
-Keeps transparency intact
+function process(){
+  ctxOut.drawImage(originalImage, 0, 0);
+  const imgData = ctxOut.getImageData(0, 0, canvasOut.width, canvasOut.height);
+  const d = imgData.data;
+  for (let i=0; i<d.length; i+=4){
+    const a = d[i+3];
+    if (a>0 && d[i]===255 && d[i+1]===255 && d[i+2]===255){
+      d[i]=254; d[i+1]=255; d[i+2]=255;
+    }
+  }
+  ctxOut.putImageData(imgData, 0, 0);
+  autoDownload();
+}
 
-No uploads — your image never leaves your device
+function autoDownload(){
+  const a = document.createElement('a');
+  a.download = `${originalName || 'immagine'}_vw_optimized.png`;
+  canvasOut.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 800);
+    setBusy(false); setStatus('Completato.'); showDone();
+  }, 'image/png');
+}
 
-Auto-processes and downloads the fixed image as _vw_optimized.png
+// Confetti
+function fireConfetti(){
+  const host = document.getElementById('confetti');
+  host.innerHTML = '';
+  const colors = ['#22d3ee','#a78bfa','#f472b6','#34d399','#fde047','#fb7185'];
+  for (let i=0;i<80;i++){
+    const el = document.createElement('i');
+    const x = (Math.random()*100|0)+'vw';
+    const r = (Math.random()*360|0)+'deg';
+    const dur = (5+Math.random()*3).toFixed(2)+'s';
+    el.style.left = Math.random()*100+'vw';
+    el.style.background = colors[i%colors.length];
+    el.style.animationDuration = dur;
+    el.style.setProperty('--x', x);
+    el.style.setProperty('--r', r);
+    host.appendChild(el);
+  }
+  setTimeout(()=>{ host.innerHTML=''; }, 6000);
+}
+</script>
+</body>
+</html>
 
-Fun, colorful interface with live preview and confetti 🎉
-
-💡 How to use
-
-Open https://giovannire65.github.io/WhitePNG/
-
-Drag & drop a .png or click to select it
-
-Wait a moment — it automatically downloads the fixed version
-
-Done! ✅
